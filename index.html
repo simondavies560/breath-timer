@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Breath Timer</title>
+<meta name="theme-color" content="#175c9e">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #0f172a; color: #e6f1fb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  #app {
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px;
+    gap: 8px;
+  }
+  #roundLabel { font-size: 15px; color: #9db4cc; letter-spacing: 0.02em; }
+  #stage {
+    position: relative; width: 260px; height: 260px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 24px 0;
+  }
+  #circle {
+    position: absolute; width: 140px; height: 140px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #4a9fe0, #175c9e);
+    transform: scale(1);
+    transition: transform 2s ease-in-out;
+  }
+  #bigNumber { position: relative; z-index: 1; font-size: 48px; font-weight: 600; text-align: center; }
+  #phaseText { position: relative; z-index: 1; font-size: 14px; color: #b9cfe6; margin-top: 4px; text-align: center; }
+  #controls { display: flex; gap: 12px; margin-top: 12px; }
+  button {
+    font-size: 16px; font-weight: 600; padding: 14px 24px; border-radius: 999px;
+    border: none; background: #175c9e; color: white; min-width: 130px;
+  }
+  button.secondary { background: #1e293b; color: #cbd5e1; min-width: 100px; }
+  button:active { opacity: 0.8; }
+  #settingsBtn {
+    position: fixed; top: 16px; right: 16px; width: 44px; height: 44px;
+    min-width: 0; padding: 0; border-radius: 50%; background: #1e293b; font-size: 20px;
+  }
+  #settingsPanel {
+    display: none; width: 100%; max-width: 340px; max-height: 60vh; overflow-y: auto;
+    background: #1e293b; border-radius: 16px; padding: 16px 20px; margin-top: 16px;
+  }
+  .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 14px; gap: 10px; }
+  .row label { flex: 1; }
+  .row input[type="number"] { width: 64px; padding: 6px; border-radius: 8px; border: none; background: #0f172a; color: white; text-align: right; }
+  .row input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; }
+  .row select { max-width: 160px; padding: 6px; border-radius: 8px; border: none; background: #0f172a; color: white; }
+  #note { font-size: 12px; color: #7c93ac; margin-top: 4px; line-height: 1.5; }
+  #safety { font-size: 12px; color: #7c93ac; text-align: center; max-width: 280px; margin-top: 20px; line-height: 1.5; }
+  h3 { font-size: 13px; color: #7c93ac; margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  h3:first-child { margin-top: 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <button id="settingsBtn" aria-label="Settings">&#9881;</button>
+  <div id="roundLabel">Ready</div>
+  <div id="stage">
+    <div id="circle"></div>
+    <div>
+      <div id="bigNumber">30</div>
+      <div id="phaseText">Breaths</div>
+    </div>
+  </div>
+  <div id="controls">
+    <button id="startPauseBtn">Start</button>
+    <button id="resetBtn" class="secondary">Reset</button>
+  </div>
+
+  <div id="settingsPanel">
+    <h3>Breathing</h3>
+    <div class="row"><label>Breaths per round</label><input type="number" id="breathCount" value="30" min="10" max="60"></div>
+    <div class="row"><label>Inhale / exhale (sec)</label><input type="number" id="breathPace" value="2" min="1" max="5"></div>
+    <div class="row"><label>Prepare time before start (sec)</label><input type="number" id="prepTime" value="5" min="0" max="30"></div>
+
+    <h3>Hold lengths (sec)</h3>
+    <div class="row"><label>Round 1 hold</label><input type="number" id="hold1" value="75" min="15" max="600"></div>
+    <div class="row"><label>Round 2 hold</label><input type="number" id="hold2" value="105" min="15" max="600"></div>
+    <div class="row"><label>Round 3 hold</label><input type="number" id="hold3" value="120" min="15" max="600"></div>
+    <div class="row"><label>Recovery hold</label><input type="number" id="recoveryHold" value="15" min="5" max="60"></div>
+
+    <h3>Sound</h3>
+    <div class="row"><label>Voice cues</label><input type="checkbox" id="voiceToggle" checked></div>
+    <div class="row"><label>Voice</label><select id="voiceSelect"></select></div>
+    <div class="row"><label>Breath tones</label><input type="checkbox" id="soundToggle" checked></div>
+    <div class="row"><label>Breath tone volume</label><input type="range" id="breathVolume" min="0" max="100" value="70" style="flex:1;"></div>
+    <div class="row"><label>Background music</label><input type="checkbox" id="musicToggle" checked></div>
+    <div class="row"><label>Music volume</label><input type="range" id="musicVolume" min="0" max="100" value="40" style="flex:1;"></div>
+    <div id="note">Drop your own royalty-free track next to index.html named <code>ambient.mp3</code> to use it &mdash; try pixabay.com/music (free, no attribution needed). If no file is found, a generated ambient pad plays instead.</div>
+    <div id="note">Hold lengths default to 1:15, 1:45 and 2:00 for rounds 1&ndash;3 &mdash; adjust as you build up tolerance.</div>
+  </div>
+
+  <div id="safety">Do this seated or lying down, never in water or while driving. Stop if you feel lightheaded.</div>
+</div>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+let wakeLock = null;
+async function requestWakeLock() {
+  try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+}
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+}
+
+const els = {
+  round: document.getElementById('roundLabel'),
+  circle: document.getElementById('circle'),
+  big: document.getElementById('bigNumber'),
+  phase: document.getElementById('phaseText'),
+  startPause: document.getElementById('startPauseBtn'),
+  reset: document.getElementById('resetBtn'),
+  settingsBtn: document.getElementById('settingsBtn'),
+  settingsPanel: document.getElementById('settingsPanel'),
+  breathCount: document.getElementById('breathCount'),
+  breathPace: document.getElementById('breathPace'),
+  prepTime: document.getElementById('prepTime'),
+  hold1: document.getElementById('hold1'),
+  hold2: document.getElementById('hold2'),
+  hold3: document.getElementById('hold3'),
+  recoveryHold: document.getElementById('recoveryHold'),
+  voiceToggle: document.getElementById('voiceToggle'),
+  voiceSelect: document.getElementById('voiceSelect'),
+  soundToggle: document.getElementById('soundToggle'),
+  breathVolume: document.getElementById('breathVolume'),
+  musicToggle: document.getElementById('musicToggle'),
+  musicVolume: document.getElementById('musicVolume')
+};
+
+function saveSettings() {
+  const s = {
+    breathCount: els.breathCount.value,
+    breathPace: els.breathPace.value,
+    prepTime: els.prepTime.value,
+    hold1: els.hold1.value,
+    hold2: els.hold2.value,
+    hold3: els.hold3.value,
+    recoveryHold: els.recoveryHold.value,
+    voiceToggle: els.voiceToggle.checked,
+    voiceName: selectedVoice ? selectedVoice.name : null,
+    soundToggle: els.soundToggle.checked,
+    breathVolume: els.breathVolume.value,
+    musicToggle: els.musicToggle.checked,
+    musicVolume: els.musicVolume.value
+  };
+  try { localStorage.setItem('breathTimerSettings', JSON.stringify(s)); } catch (e) {}
+}
+
+function loadSavedSettings() {
+  try {
+    const raw = localStorage.getItem('breathTimerSettings');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+const savedSettings = loadSavedSettings();
+
+function applySavedSettings() {
+  if (!savedSettings) return;
+  if (savedSettings.breathCount) els.breathCount.value = savedSettings.breathCount;
+  if (savedSettings.breathPace) els.breathPace.value = savedSettings.breathPace;
+  if (savedSettings.prepTime !== undefined) els.prepTime.value = savedSettings.prepTime;
+  if (savedSettings.hold1) els.hold1.value = savedSettings.hold1;
+  if (savedSettings.hold2) els.hold2.value = savedSettings.hold2;
+  if (savedSettings.hold3) els.hold3.value = savedSettings.hold3;
+  if (savedSettings.recoveryHold) els.recoveryHold.value = savedSettings.recoveryHold;
+  if (savedSettings.voiceToggle !== undefined) els.voiceToggle.checked = savedSettings.voiceToggle;
+  if (savedSettings.soundToggle !== undefined) els.soundToggle.checked = savedSettings.soundToggle;
+  if (savedSettings.breathVolume) els.breathVolume.value = savedSettings.breathVolume;
+  if (savedSettings.musicToggle !== undefined) els.musicToggle.checked = savedSettings.musicToggle;
+  if (savedSettings.musicVolume) els.musicVolume.value = savedSettings.musicVolume;
+}
+applySavedSettings();
+
+els.settingsBtn.addEventListener('click', () => {
+  const open = els.settingsPanel.style.display === 'block';
+  els.settingsPanel.style.display = open ? 'none' : 'block';
+});
+
+let audioCtx = null;
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function breathVol() {
+  return (parseInt(els.breathVolume.value, 10) || 0) / 100;
+}
+els.breathVolume.addEventListener('input', saveSettings);
+
+function playSweep(fromFreq, toFreq, durSec) {
+  if (!els.soundToggle.checked) return;
+  const vol = breathVol();
+  if (vol <= 0) return;
+  const ac = getCtx();
+  const o = ac.createOscillator();
+  const sub = ac.createOscillator();
+  const g = ac.createGain();
+  const subGain = ac.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(fromFreq, ac.currentTime);
+  o.frequency.linearRampToValueAtTime(toFreq, ac.currentTime + durSec);
+  sub.type = 'sine';
+  sub.frequency.setValueAtTime(fromFreq / 2, ac.currentTime);
+  sub.frequency.linearRampToValueAtTime(toFreq / 2, ac.currentTime + durSec);
+  g.gain.setValueAtTime(0.0001, ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.22 * vol, ac.currentTime + Math.min(0.4, durSec * 0.3));
+  g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + durSec);
+  subGain.gain.setValueAtTime(0.0001, ac.currentTime);
+  subGain.gain.exponentialRampToValueAtTime(0.18 * vol, ac.currentTime + Math.min(0.4, durSec * 0.3));
+  subGain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + durSec);
+  o.connect(g); g.connect(ac.destination);
+  sub.connect(subGain); subGain.connect(ac.destination);
+  o.start(); o.stop(ac.currentTime + durSec + 0.05);
+  sub.start(); sub.stop(ac.currentTime + durSec + 0.05);
+}
+
+function tickSound() {
+  if (!els.soundToggle.checked) return;
+  const vol = breathVol();
+  if (vol <= 0) return;
+  const ac = getCtx();
+  const o = ac.createOscillator();
+  const g = ac.createGain();
+  o.type = 'square';
+  o.frequency.value = 600;
+  g.gain.setValueAtTime(0.0001, ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.1 * vol, ac.currentTime + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.15);
+  o.connect(g); g.connect(ac.destination);
+  o.start(); o.stop(ac.currentTime + 0.2);
+}
+
+let bgAudio = null;
+let ambientNodes = null;
+
+function musicVol() {
+  return (parseInt(els.musicVolume.value, 10) || 0) / 100;
+}
+
+function fadeAudioTo(audio, target, ms) {
+  const steps = 20;
+  const startVol = audio.volume;
+  const stepMs = ms / steps;
+  let i = 0;
+  const id = setInterval(() => {
+    i++;
+    audio.volume = startVol + (target - startVol) * (i / steps);
+    if (i >= steps) clearInterval(id);
+  }, stepMs);
+}
+
+function tryRealTrack() {
+  bgAudio = new Audio('ambient.mp3');
+  bgAudio.loop = true;
+  bgAudio.volume = 0;
+  bgAudio.addEventListener('error', () => {
+    bgAudio = null;
+    startProceduralAmbient();
+  });
+  bgAudio.play().then(() => {
+    fadeAudioTo(bgAudio, musicVol(), 2000);
+  }).catch(() => {
+    bgAudio = null;
+    startProceduralAmbient();
+  });
+}
+
+function startAmbient() {
+  if (!els.musicToggle.checked || bgAudio || ambientNodes) return;
+  tryRealTrack();
+}
+
+function startProceduralAmbient() {
+  if (ambientNodes) return;
+  const ac = getCtx();
+  const master = ac.createGain();
+  master.gain.value = 0.0001;
+  master.gain.linearRampToValueAtTime(musicVol() * 0.15, ac.currentTime + 2);
+  const filter = ac.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 700;
+  master.connect(filter);
+  filter.connect(ac.destination);
+  const freqs = [110, 164.81, 220];
+  const oscs = freqs.map((f) => {
+    const o = ac.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = f;
+    const g = ac.createGain();
+    g.gain.value = 0.33;
+    o.connect(g); g.connect(master);
+    o.start();
+    return o;
+  });
+  const lfo = ac.createOscillator();
+  lfo.frequency.value = 0.08;
+  const lfoGain = ac.createGain();
+  lfoGain.gain.value = 0.03;
+  lfo.connect(lfoGain);
+  lfoGain.connect(master.gain);
+  lfo.start();
+  ambientNodes = { master, filter, oscs, lfo };
+}
+function stopAmbient() {
+  if (bgAudio) {
+    const audio = bgAudio;
+    fadeAudioTo(audio, 0, 1000);
+    setTimeout(() => { audio.pause(); }, 1100);
+    bgAudio = null;
+  }
+  if (ambientNodes) {
+    const ac = getCtx();
+    ambientNodes.master.gain.cancelScheduledValues(ac.currentTime);
+    ambientNodes.master.gain.linearRampToValueAtTime(0.0001, ac.currentTime + 1);
+    const nodes = ambientNodes;
+    setTimeout(() => {
+      nodes.oscs.forEach((o) => { try { o.stop(); } catch (e) {} });
+      try { nodes.lfo.stop(); } catch (e) {}
+    }, 1100);
+    ambientNodes = null;
+  }
+}
+
+els.musicVolume.addEventListener('input', () => {
+  if (bgAudio) bgAudio.volume = musicVol();
+  if (ambientNodes) ambientNodes.master.gain.value = musicVol() * 0.15;
+  saveSettings();
+});
+
+let voices = [];
+let selectedVoice = null;
+function loadVoices() {
+  voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  const enVoices = voices.filter((v) => v.lang && v.lang.toLowerCase().startsWith('en'));
+  const list = enVoices.length ? enVoices : voices;
+  els.voiceSelect.innerHTML = '';
+  list.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = v.name;
+    opt.textContent = v.name + ' (' + v.lang + ')';
+    els.voiceSelect.appendChild(opt);
+  });
+  const femaleGuess = list.find((v) => /female|zira|samantha|victoria|karen|moira|tessa|fiona|susan|salli|joanna/i.test(v.name));
+  const savedVoice = savedSettings && savedSettings.voiceName ? list.find((v) => v.name === savedSettings.voiceName) : null;
+  selectedVoice = savedVoice || femaleGuess || list[0] || null;
+  if (selectedVoice) els.voiceSelect.value = selectedVoice.name;
+}
+if (window.speechSynthesis) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+els.voiceSelect.addEventListener('change', () => {
+  selectedVoice = voices.find((v) => v.name === els.voiceSelect.value) || null;
+});
+
+function speak(text) {
+  if (!els.voiceToggle.checked || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.95;
+  u.pitch = 1;
+  if (selectedVoice) u.voice = selectedVoice;
+  window.speechSynthesis.speak(u);
+}
+
+function fmt(s) {
+  const m = Math.floor(s / 60), r = s % 60;
+  return m + ':' + (r < 10 ? '0' : '') + r;
+}
+const COUNT_WORDS = { 5: 'Five breaths to go', 4: 'Four', 3: 'Three', 2: 'Two', 1: 'One' };
+const HOLD_WORDS = { 5: 'Five', 4: 'Four', 3: 'Three', 2: 'Two', 1: 'One' };
+
+let phases = [];
+let phaseIdx = 0;
+let elapsedMs = 0;
+let lastTickTime = 0;
+let intervalId = null;
+let sessionState = 'idle';
+let sub = {};
+
+function buildPhases() {
+  const count = parseInt(els.breathCount.value, 10) || 30;
+  const pace = parseFloat(els.breathPace.value) || 2;
+  const prep = parseInt(els.prepTime.value, 10) || 0;
+  const holds = [
+    parseInt(els.hold1.value, 10) || 75,
+    parseInt(els.hold2.value, 10) || 105,
+    parseInt(els.hold3.value, 10) || 120
+  ];
+  const recovery = parseInt(els.recoveryHold.value, 10) || 15;
+  const list = [];
+  if (prep > 0) list.push({ type: 'prepare', duration: prep });
+  for (let r = 0; r < 3; r++) {
+    list.push({ type: 'breath', round: r, count, pace });
+    list.push({ type: 'hold', round: r, duration: holds[r] });
+    list.push({ type: 'recovery', duration: recovery });
+  }
+  list.push({ type: 'done' });
+  return list;
+}
+
+function enterPhase(p) {
+  sub = { announcedSecond: null, lastSubPhase: null, lastBreathIndex: 0, remainingAnnounced: null };
+  if (p.type === 'prepare') {
+    els.round.textContent = 'Get ready';
+    els.phase.textContent = 'Relax and settle in';
+    speak('Get comfortable. We will begin breathing shortly.');
+  } else if (p.type === 'breath') {
+    els.round.textContent = 'Round ' + (p.round + 1) + ' of 3';
+    els.phase.textContent = 'Breathe in / out';
+    speak('Round ' + (p.round + 1) + '. Thirty breaths, begin.');
+  } else if (p.type === 'hold') {
+    els.phase.textContent = 'Hold your breath';
+    els.circle.style.transition = 'transform 0.5s ease-in-out';
+    els.circle.style.transform = 'scale(1)';
+    speak('Hold your breath.');
+  } else if (p.type === 'recovery') {
+    els.phase.textContent = 'Breathe in and hold';
+    speak('Breathe in deeply, and hold.');
+  } else if (p.type === 'done') {
+    els.round.textContent = 'Session complete';
+    els.phase.textContent = 'Well done';
+    els.big.textContent = '';
+    speak('Session complete. Well done.');
+    stopSession(true);
+  }
+}
+
+function advanceIfNeeded() {
+  let guard = 0;
+  while (guard++ < 20) {
+    const p = phases[phaseIdx];
+    if (!p) return;
+    let durMs = 0;
+    if (p.type === 'prepare') durMs = p.duration * 1000;
+    else if (p.type === 'breath') durMs = p.count * p.pace * 2 * 1000;
+    else if (p.type === 'hold' || p.type === 'recovery') durMs = p.duration * 1000;
+    else if (p.type === 'done') return;
+    if (elapsedMs >= durMs) {
+      elapsedMs -= durMs;
+      phaseIdx++;
+      const next = phases[phaseIdx];
+      if (!next) return;
+      enterPhase(next);
+      if (next.type === 'done') return;
+    } else {
+      return;
+    }
+  }
+}
+
+function renderPhase() {
+  const p = phases[phaseIdx];
+  if (!p) return;
+  if (p.type === 'prepare') {
+    const remaining = Math.max(0, Math.ceil((p.duration * 1000 - elapsedMs) / 1000));
+    els.big.textContent = remaining > 0 ? String(remaining) : '';
+  } else if (p.type === 'breath') {
+    const cycleMs = p.pace * 2 * 1000;
+    let idx = Math.floor(elapsedMs / cycleMs) + 1;
+    if (idx > p.count) idx = p.count;
+    const pos = elapsedMs % cycleMs;
+    const isInhale = pos < p.pace * 1000;
+    els.big.textContent = idx + ' / ' + p.count;
+    if (idx !== sub.lastBreathIndex) {
+      sub.lastBreathIndex = idx;
+      const remaining = p.count - idx + 1;
+      if (remaining <= 5 && remaining >= 1 && sub.remainingAnnounced !== remaining) {
+        sub.remainingAnnounced = remaining;
+        speak(COUNT_WORDS[remaining]);
+      }
+    }
+    if (isInhale !== sub.lastSubPhase) {
+      sub.lastSubPhase = isInhale;
+      els.circle.style.transition = 'transform ' + p.pace + 's ease-in-out';
+      els.circle.style.transform = isInhale ? 'scale(1.5)' : 'scale(1)';
+      playSweep(isInhale ? 110 : 220, isInhale ? 220 : 110, p.pace);
+    }
+  } else if (p.type === 'hold' || p.type === 'recovery') {
+    const remaining = Math.max(0, Math.ceil((p.duration * 1000 - elapsedMs) / 1000));
+    els.big.textContent = fmt(remaining);
+    if (remaining <= 5 && remaining >= 1 && sub.announcedSecond !== remaining) {
+      sub.announcedSecond = remaining;
+      tickSound();
+      speak(HOLD_WORDS[remaining]);
+    }
+  }
+}
+
+function tick() {
+  const now = Date.now();
+  const delta = now - lastTickTime;
+  lastTickTime = now;
+  elapsedMs += delta;
+  advanceIfNeeded();
+  if (sessionState === 'running') renderPhase();
+}
+
+function startSession() {
+  phases = buildPhases();
+  phaseIdx = 0;
+  elapsedMs = 0;
+  enterPhase(phases[0]);
+  sessionState = 'running';
+  lastTickTime = Date.now();
+  intervalId = setInterval(tick, 100);
+  els.startPause.textContent = 'Pause';
+  requestWakeLock();
+  startAmbient();
+}
+
+function pauseSession() {
+  sessionState = 'paused';
+  clearInterval(intervalId);
+  intervalId = null;
+  els.startPause.textContent = 'Resume';
+}
+
+function resumeSession() {
+  sessionState = 'running';
+  lastTickTime = Date.now();
+  intervalId = setInterval(tick, 100);
+  els.startPause.textContent = 'Pause';
+  requestWakeLock();
+}
+
+function stopSession(completed) {
+  sessionState = completed ? 'done' : 'idle';
+  clearInterval(intervalId);
+  intervalId = null;
+  els.startPause.textContent = 'Start';
+  releaseWakeLock();
+  stopAmbient();
+}
+
+function resetSession() {
+  stopSession(false);
+  phases = [];
+  phaseIdx = 0;
+  elapsedMs = 0;
+  els.round.textContent = 'Ready';
+  els.phase.textContent = 'Breaths';
+  els.big.textContent = els.breathCount.value || '30';
+  els.circle.style.transition = 'transform 0.3s ease-in-out';
+  els.circle.style.transform = 'scale(1)';
+}
+
+els.startPause.addEventListener('click', () => {
+  if (sessionState === 'idle' || sessionState === 'done') startSession();
+  else if (sessionState === 'running') pauseSession();
+  else if (sessionState === 'paused') resumeSession();
+});
+els.reset.addEventListener('click', resetSession);
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && (sessionState === 'running' || sessionState === 'paused')) requestWakeLock();
+});
+
+[els.breathCount, els.breathPace, els.prepTime, els.hold1, els.hold2, els.hold3, els.recoveryHold, els.voiceToggle, els.soundToggle, els.musicToggle].forEach((el) => {
+  el.addEventListener('change', saveSettings);
+});
+els.voiceSelect.addEventListener('change', saveSettings);
+
+resetSession();
+</script>
+</body>
+</html>
