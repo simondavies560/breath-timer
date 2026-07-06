@@ -223,10 +223,10 @@ function playSweep(fromFreq, toFreq, durSec) {
   sub.frequency.setValueAtTime(fromFreq / 2, ac.currentTime);
   sub.frequency.linearRampToValueAtTime(toFreq / 2, ac.currentTime + durSec);
   g.gain.setValueAtTime(0.0001, ac.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.22 * vol, ac.currentTime + Math.min(0.4, durSec * 0.3));
+  g.gain.exponentialRampToValueAtTime(0.55 * vol, ac.currentTime + Math.min(0.4, durSec * 0.3));
   g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + durSec);
   subGain.gain.setValueAtTime(0.0001, ac.currentTime);
-  subGain.gain.exponentialRampToValueAtTime(0.18 * vol, ac.currentTime + Math.min(0.4, durSec * 0.3));
+  subGain.gain.exponentialRampToValueAtTime(0.45 * vol, ac.currentTime + Math.min(0.4, durSec * 0.3));
   subGain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + durSec);
   o.connect(g); g.connect(ac.destination);
   sub.connect(subGain); subGain.connect(ac.destination);
@@ -244,7 +244,7 @@ function tickSound() {
   o.type = 'square';
   o.frequency.value = 600;
   g.gain.setValueAtTime(0.0001, ac.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.1 * vol, ac.currentTime + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.3 * vol, ac.currentTime + 0.02);
   g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.15);
   o.connect(g); g.connect(ac.destination);
   o.start(); o.stop(ac.currentTime + 0.2);
